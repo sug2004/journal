@@ -1,7 +1,5 @@
-
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-
 
 export async function updateSession(request: NextRequest) {
   const response = NextResponse.next();
@@ -13,16 +11,17 @@ export async function updateSession(request: NextRequest) {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
         },
       },
     }
   );
 
-  const pathname = request.nextUrl.pathname;
-  const searchParams = request.nextUrl.searchParams;
+  const url = request.nextUrl;
+  const pathname = url.pathname;
+  const searchParams = url.searchParams;
   const code = searchParams.get('code');
   const provider = searchParams.get('provider');
 
@@ -34,20 +33,22 @@ export async function updateSession(request: NextRequest) {
   ];
   const isPublic = publicPaths.some(path => pathname.startsWith(path));
 
-  // ✅ Use full origin instead of assuming localhost
-  const origin = request.nextUrl.origin;
+  // ✅ 1. Force session cookie to be created if ?code is present (OAuth/Email)
+  if (code) {
+    await supabase.auth.getSession(); // makes sure cookies are set properly
+  }
 
-  // ✅ Only redirect to update-password for password reset flows, not OAuth
+  // ✅ 2. Only redirect to update-password if code present and not from OAuth
   if (code && pathname === '/' && !provider) {
-    const redirectUrl = new URL('/auth/update-password', origin);
+    const redirectUrl = new URL('/auth/update-password', url.origin);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // ✅ User check
+  // ✅ 3. Check user after session hydration
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user && !isPublic) {
-    const redirectUrl = new URL('/auth', origin);
+    const redirectUrl = new URL('/auth', url.origin);
     redirectUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(redirectUrl);
   }
