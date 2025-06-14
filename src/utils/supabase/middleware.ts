@@ -2,6 +2,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+
 export async function updateSession(request: NextRequest) {
   const response = NextResponse.next();
 
@@ -23,6 +24,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
+  const provider = searchParams.get('provider');
 
   const publicPaths = [
     '/auth',
@@ -35,8 +37,8 @@ export async function updateSession(request: NextRequest) {
   // ✅ Use full origin instead of assuming localhost
   const origin = request.nextUrl.origin;
 
-  // ✅ OTP Code handling
-  if (code && pathname === '/') {
+  // ✅ Only redirect to update-password for password reset flows, not OAuth
+  if (code && pathname === '/' && !provider) {
     const redirectUrl = new URL('/auth/update-password', origin);
     return NextResponse.redirect(redirectUrl);
   }
