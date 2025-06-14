@@ -60,7 +60,6 @@
 
 //   return response;
 // }
-
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
@@ -83,7 +82,8 @@ export async function updateSession(request: NextRequest) {
   );
 
   const pathname = request.nextUrl.pathname;
-  const code = request.nextUrl.searchParams.get('code');
+  const searchParams = request.nextUrl.searchParams;
+  const code = searchParams.get('code');
 
   const publicPaths = [
     '/auth',
@@ -93,21 +93,20 @@ export async function updateSession(request: NextRequest) {
   ];
   const isPublic = publicPaths.some(path => pathname.startsWith(path));
 
-  // ⚠️ Special redirect for OTP/password update flows
+  // ✅ Use full origin instead of assuming localhost
+  const origin = request.nextUrl.origin;
+
+  // ✅ OTP Code handling
   if (code && pathname === '/') {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/auth/update-password';
-    redirectUrl.searchParams.delete('code');
+    const redirectUrl = new URL('/auth/update-password', origin);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // 🔐 Check user session
+  // ✅ User check
   const { data: { user } } = await supabase.auth.getUser();
 
-  // 🔐 Block private route access for unauthenticated users
   if (!user && !isPublic) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/auth';
+    const redirectUrl = new URL('/auth', origin);
     redirectUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(redirectUrl);
   }
