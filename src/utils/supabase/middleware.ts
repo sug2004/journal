@@ -75,6 +75,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
+  const provider = searchParams.get('provider');
 
   const publicPaths = [
     '/auth',
@@ -87,8 +88,8 @@ export async function updateSession(request: NextRequest) {
   // ✅ Use full origin instead of assuming localhost
   const origin = request.nextUrl.origin;
 
-  // ✅ OTP Code handling - ONLY redirect if NOT on callback path
-  if (code && pathname === '/' && !pathname.includes('/auth/callback')) {
+  // ✅ Only redirect to update-password for password reset flows, not OAuth
+  if (code && pathname === '/' && !provider) {
     const redirectUrl = new URL('/auth/update-password', origin);
     return NextResponse.redirect(redirectUrl);
   }
