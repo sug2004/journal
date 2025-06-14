@@ -11,9 +11,9 @@ export async function updateSession(request: NextRequest) {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
         },
       },
     }
@@ -23,7 +23,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = url.pathname;
   const searchParams = url.searchParams;
   const code = searchParams.get('code');
-  const provider = searchParams.get('provider');
+  const type = searchParams.get('type'); // <— KEY FIX
 
   const publicPaths = [
     '/auth',
@@ -31,20 +31,20 @@ export async function updateSession(request: NextRequest) {
     '/auth/update-password',
     '/auth/callback',
   ];
-  const isPublic = publicPaths.some(path => pathname.startsWith(path));
+  const isPublic = publicPaths.some((path) => pathname.startsWith(path));
 
-  // ✅ 1. Force session cookie to be created if ?code is present (OAuth/Email)
+  // ✅ Force Supabase to set cookies if ?code= is present (OAuth or recovery)
   if (code) {
-    await supabase.auth.getSession(); // makes sure cookies are set properly
+    await supabase.auth.getSession();
   }
 
-  // ✅ 2. Only redirect to update-password if code present and not from OAuth
-  if (code && pathname === '/' && !provider) {
+  // ✅ Redirect to /auth/update-password only if type=recovery
+  if (code && type === 'recovery') {
     const redirectUrl = new URL('/auth/update-password', url.origin);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // ✅ 3. Check user after session hydration
+  // ✅ Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user && !isPublic) {
