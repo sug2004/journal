@@ -1,6 +1,7 @@
 
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+// import { createServerClient } from '@supabase/ssr';
+// import { NextResponse, type NextRequest } from 'next/server';
+
 
 // export async function updateSession(request: NextRequest) {
 //   const response = NextResponse.next();
@@ -23,6 +24,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 //   const pathname = request.nextUrl.pathname;
 //   const searchParams = request.nextUrl.searchParams;
 //   const code = searchParams.get('code');
+//   const provider = searchParams.get('provider');
 
 //   const publicPaths = [
 //     '/auth',
@@ -35,8 +37,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 //   // ✅ Use full origin instead of assuming localhost
 //   const origin = request.nextUrl.origin;
 
-//   // ✅ OTP Code handling
-//   if (code && pathname === '/') {
+//   // ✅ Only redirect to update-password for password reset flows, not OAuth
+//   if (code && pathname === '/' && !provider) {
 //     const redirectUrl = new URL('/auth/update-password', origin);
 //     return NextResponse.redirect(redirectUrl);
 //   }
@@ -53,7 +55,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 //   return response;
 // }
 
-// In src/utils/supabase/middleware.ts
+
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
+
 export async function updateSession(request: NextRequest) {
   const response = NextResponse.next();
 
@@ -72,10 +77,11 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const pathname = request.nextUrl.pathname;
-  const searchParams = request.nextUrl.searchParams;
-  const code = searchParams.get('code');
-  const provider = searchParams.get('provider');
+  const url = request.nextUrl;
+  const pathname = url.pathname;
+  const code = url.searchParams.get('code');
+  const type = url.searchParams.get('type'); // important
+  const origin = url.origin;
 
   const publicPaths = [
     '/auth',
@@ -83,18 +89,16 @@ export async function updateSession(request: NextRequest) {
     '/auth/update-password',
     '/auth/callback',
   ];
+
   const isPublic = publicPaths.some(path => pathname.startsWith(path));
 
-  // ✅ Use full origin instead of assuming localhost
-  const origin = request.nextUrl.origin;
-
-  // ✅ Only redirect to update-password for password reset flows, not OAuth
-  if (code && pathname === '/' && !provider) {
+  // ✅ Only redirect to /auth/update-password for password reset (not OAuth)
+  if (code && type === 'recovery' && pathname === '/') {
     const redirectUrl = new URL('/auth/update-password', origin);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // ✅ User check
+  // ✅ Redirect unauthenticated users trying to access private routes
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user && !isPublic) {
