@@ -1,95 +1,53 @@
+
+// // app/auth/update-password/page.tsx
 // 'use client';
 
-// import { useState, useEffect } from 'react';
-// import { useRouter, useSearchParams } from 'next/navigation';
+// import { useState } from 'react';
 // import { createClient } from '@/utils/supabase/client';
+// import { useRouter } from 'next/navigation';
 
 // export default function UpdatePasswordPage() {
-//   const supabase = createClient();
-//   const router = useRouter();
-//   const searchParams = useSearchParams();
-
 //   const [password, setPassword] = useState('');
-//   const [confirm, setConfirm] = useState('');
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-//   const [success, setSuccess] = useState(false);
-
-//   useEffect(() => {
-//     const error = searchParams.get('error');
-//     const desc = searchParams.get('error_description');
-//     if (error && desc) {
-//       setError(decodeURIComponent(desc));
-//     }
-//   }, [searchParams]);
+//   const [status, setStatus] = useState('');
+//   const router = useRouter();
+//   const supabase = createClient();
 
 //   const handleUpdate = async (e: React.FormEvent) => {
 //     e.preventDefault();
-//     setError('');
-//     setSuccess(false);
-
-//     if (password.length < 6) {
-//       setError('Password must be at least 6 characters long.');
-//       return;
-//     }
-
-//     if (password !== confirm) {
-//       setError("Passwords don't match.");
-//       return;
-//     }
-
-//     setLoading(true);
 //     const { error } = await supabase.auth.updateUser({ password });
-//     setLoading(false);
 
 //     if (error) {
-//       setError(error.message);
+//       setStatus('❌ Failed to update password: ' + error.message);
 //     } else {
-//       setSuccess(true);
-//       setTimeout(() => router.push('/'), 2000);
+//       setStatus('✅ Password updated! Redirecting...');
+//       setTimeout(() => {
+//         router.push('/');
+//       }, 2000);
 //     }
 //   };
 
 //   return (
-//     <div className="max-w-md mx-auto mt-12 p-6 bg-white rounded shadow">
-//       <h1 className="text-xl font-bold mb-4">Update Your Password</h1>
-//       {error && <p className="text-red-500 mb-2 text-sm">{error}</p>}
-//       {success && <p className="text-green-600 mb-2 text-sm">Password updated successfully!</p>}
-//       <form onSubmit={handleUpdate} className="space-y-4">
-//         <div>
-//           <label className="block text-sm font-medium mb-1">New Password</label>
-//           <input
-//             type="password"
-//             value={password}
-//             onChange={(e) => setPassword(e.target.value)}
-//             className="input input-bordered w-full"
-//             required
-//           />
-//         </div>
-//         <div>
-//           <label className="block text-sm font-medium mb-1">Confirm Password</label>
-//           <input
-//             type="password"
-//             value={confirm}
-//             onChange={(e) => setConfirm(e.target.value)}
-//             className="input input-bordered w-full"
-//             required
-//           />
-//         </div>
-//         <button
-//           type="submit"
-//           disabled={loading}
-//           className="btn w-full bg-indigo-600 text-white"
-//         >
-//           {loading ? 'Updating...' : 'Update Password'}
+//     <div className="min-h-screen flex items-center justify-center px-4">
+//       <form onSubmit={handleUpdate} className="max-w-md w-full space-y-4 bg-white shadow-md p-6 rounded-lg">
+//         <h1 className="text-xl font-bold">Update Password</h1>
+//         <input
+//           type="password"
+//           className="w-full px-4 py-2 border rounded"
+//           placeholder="New password"
+//           value={password}
+//           onChange={(e) => setPassword(e.target.value)}
+//           required
+//         />
+//         <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded">
+//           Update Password
 //         </button>
+//         {status && <p className="text-sm mt-2">{status}</p>}
 //       </form>
 //     </div>
 //   );
 // }
 
 
-// app/auth/update-password/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -98,40 +56,76 @@ import { useRouter } from 'next/navigation';
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState('');
+  const [visible, setVisible] = useState(false);
   const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setStatus('');
+
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      setStatus('❌ Failed to update password: ' + error.message);
+      setStatus(`❌ ${error.message}`);
     } else {
       setStatus('✅ Password updated! Redirecting...');
       setTimeout(() => {
         router.push('/');
       }, 2000);
     }
+
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <form onSubmit={handleUpdate} className="max-w-md w-full space-y-4 bg-white shadow-md p-6 rounded-lg">
-        <h1 className="text-xl font-bold">Update Password</h1>
-        <input
-          type="password"
-          className="w-full px-4 py-2 border rounded"
-          placeholder="New password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded">
-          Update Password
+    <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+      <form
+        onSubmit={handleUpdate}
+        className="max-w-md w-full bg-white shadow-lg p-6 rounded-lg space-y-4"
+      >
+        <h1 className="text-2xl font-semibold text-center">Update Password</h1>
+
+        <div className="relative">
+          <input
+            type={visible ? 'text' : 'password'}
+            className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Enter new password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setVisible(!visible)}
+            className="absolute inset-y-0 right-3 flex items-center text-sm text-gray-500"
+          >
+            {visible ? 'Hide' : 'Show'}
+          </button>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition ${
+            loading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          {loading ? 'Updating...' : 'Update Password'}
         </button>
-        {status && <p className="text-sm mt-2">{status}</p>}
+
+        {status && (
+          <p
+            className={`text-sm mt-2 ${
+              status.startsWith('✅') ? 'text-green-600' : 'text-red-600'
+            }`}
+          >
+            {status}
+          </p>
+        )}
       </form>
     </div>
   );
