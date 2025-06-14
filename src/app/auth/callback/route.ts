@@ -1,34 +1,27 @@
-import { NextResponse } from 'next/server'
-// The client you created from the Server-Side Auth instructions
-import { createClient } from '@/utils/supabase/server'
+import { NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  // if "next" is in param, use it as the redirect URL
-  let next = searchParams.get('next') ?? '/dashboard';
-  if (!next.startsWith('/')) {
-    // if "next" is not a relative URL, use the default
-    next = '/dashboard';
-  }
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+  const redirectTo = url.searchParams.get('next') ?? '/';
+
+  // Prevent open redirect attacks by allowing only relative paths
+  const isSafeRedirect = redirectTo.startsWith('/');
+  const safeRedirectPath = isSafeRedirect ? redirectTo : '/';
 
   if (code) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
-      const isLocalEnv = process.env.NODE_ENV === 'production'
-      if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      console.error('OAuth callback error:', error.message);
+      return NextResponse.redirect(`${url.origin}/auth?error=oauth_callback_failed`);
     }
+
+    return NextResponse.redirect(`${url.origin}${safeRedirectPath}`);
   }
 
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  return NextResponse.redirect(`${url.origin}/auth?error=missing_code`);
 }
