@@ -1,27 +1,21 @@
-import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const code = url.searchParams.get('code');
-  const redirectTo = url.searchParams.get('next') ?? '/';
-
-  // Prevent open redirect attacks by allowing only relative paths
-  const isSafeRedirect = redirectTo.startsWith('/');
-  const safeRedirectPath = isSafeRedirect ? redirectTo : '/';
-
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const next = searchParams.get('next') || '/';
+  
   if (code) {
     const supabase = await createClient();
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (error) {
-      console.error('OAuth callback error:', error.message);
-      return NextResponse.redirect(`${url.origin}/auth?error=oauth_callback_failed`);
+    try {
+      await supabase.auth.exchangeCodeForSession(code);
+      return NextResponse.redirect(new URL(next, request.url));
+    } catch (error) {
+      console.error('Error exchanging code for session:', error);
+      return NextResponse.redirect(new URL('/auth?error=callback_error', request.url));
     }
-
-    return NextResponse.redirect(`${url.origin}${safeRedirectPath}`);
   }
-
-  return NextResponse.redirect(`${url.origin}/auth?error=missing_code`);
+  
+  return NextResponse.redirect(new URL('/auth?error=no_code', request.url));
 }

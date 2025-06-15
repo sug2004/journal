@@ -1,3 +1,4 @@
+// middleware.ts
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
@@ -23,7 +24,8 @@ export async function updateSession(request: NextRequest) {
   const pathname = url.pathname;
   const searchParams = url.searchParams;
   const code = searchParams.get('code');
-  const type = searchParams.get('type'); // <— KEY FIX
+  const type = searchParams.get('type');
+  const provider = searchParams.get('provider');
 
   const publicPaths = [
     '/auth',
@@ -33,21 +35,24 @@ export async function updateSession(request: NextRequest) {
   ];
   const isPublic = publicPaths.some((path) => pathname.startsWith(path));
 
-  // ✅ Force Supabase to set cookies if ?code= is present (OAuth or recovery)
+  // ✅ Force session cookie hydration if Supabase returned ?code=
   if (code) {
     await supabase.auth.getSession();
   }
 
-  // ✅ Redirect to /auth/update-password only if type=recovery
+  // ✅ Only redirect to update-password on password recovery flows (not OAuth login)
   if (code && type === 'recovery') {
     const redirectUrl = new URL('/auth/update-password', url.origin);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // ✅ Check if user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!user && !isPublic) {
+  // ✅ Allow ?code= pages to resolve fully before checking user
+  const isOAuthRedirect = code && !type;
+  if (!user && !isPublic && !isOAuthRedirect) {
     const redirectUrl = new URL('/auth', url.origin);
     redirectUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(redirectUrl);
