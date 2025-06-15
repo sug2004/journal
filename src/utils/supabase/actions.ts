@@ -28,30 +28,32 @@ const signInWith = (provider: Provider) => {
 
 export const signinWithGoogle = signInWith('google');
 
+
+
+
 export async function emailSignup(formData: FormData) {
-  try {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const display_name = formData.get('display_name') as string;
-    const supabase = await createClient();
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const display_name = formData.get('display_name') as string;
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { display_name } },
-    });
+  const supabase = await createClient();
 
-    console.log('Signup data:', data);
-    if (error) {
-      console.error('Supabase signup error:', error);
-      throw new Error(error.message);
-    }
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { display_name },
+    },
+  });
 
-    redirect('/');
-  } catch (err) {
-    console.error('Signup failed:', err);
-    throw err;
+  console.log('Signup data:', data);
+
+  if (error) {
+    console.error('Supabase signup error:', error);
+    throw new Error(error.message);
   }
+
+  return { success: true }; // ✅ let client handle redirect
 }
 
 export async function emailSignin(formData: FormData) {
@@ -59,11 +61,14 @@ export async function emailSignin(formData: FormData) {
   const password = formData.get('password') as string;
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
   if (error) {
-    console.error('Signin error:', error.message);
-    throw new Error(error.message);
+    console.error('❌ Signin error:', error.message);
+    throw new Error(error.message); // This will show up in dev overlay
   }
 
   if (!data.user?.email_confirmed_at) {
@@ -72,6 +77,7 @@ export async function emailSignin(formData: FormData) {
 
   redirect('/');
 }
+
 
 export async function signout() {
   const supabase = await createClient();

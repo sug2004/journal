@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -5,24 +6,52 @@ import {
   emailSignup,
   emailSignin,
 } from '@/utils/supabase/actions';
-import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useState, useTransition } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function AuthPage(): JSX.Element {
   const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [error, setError] = useState('');
+  const [pending, startTransition] = useTransition();
+
   const searchParams = useSearchParams();
-  const errorParam = searchParams.get('error');
+  const router = useRouter();
+  const successParam = searchParams.get('success');
 
   useEffect(() => {
-    if (errorParam === 'confirm_email') {
-      alert('Please confirm your email before signing in.');
+    if (successParam === 'confirm_email') {
+      alert('✅ Please check your email to confirm your account.');
     }
-    
-  }, [errorParam]);
+  }, [successParam]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('email', email);
+    formData.append('password', password);
+    if (!isLogin) formData.append('display_name', displayName);
+
+    startTransition(async () => {
+      try {
+        setError('');
+        if (isLogin) {
+          await emailSignin(formData);
+        } else {
+          await emailSignup(formData);
+          router.replace('/auth?success=confirm_email'); // ✅ redirect after signup
+        }
+      } catch (err: any) {
+        setError(err.message || 'Something went wrong');
+      }
+    });
+  };
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen">
-      {/* Left Section (hidden on small screens) */}
+      {/* Left Section */}
       <div className="hidden md:flex w-1/2 relative">
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -31,8 +60,7 @@ export default function AuthPage(): JSX.Element {
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center px-6">
           <div className="text-white text-center max-w-md">
             <h1 className="text-3xl font-bold mb-4 leading-snug">
-              Discover Possibilities, <br />
-              Unleash Your Brilliance
+              Discover Possibilities,<br />Unleash Your Brilliance
             </h1>
             <p className="text-base text-gray-200">
               Team Journal: Your collaborative space for growth and reflection.
@@ -53,13 +81,15 @@ export default function AuthPage(): JSX.Element {
               : 'Enter your details to sign up'}
           </p>
 
-          <form action={isLogin ? emailSignin : emailSignup}>
+          <form onSubmit={handleSubmit}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email
             </label>
             <input
-              name="email"
               type="email"
+              name="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
               required
               className="input input-bordered w-full mb-4"
@@ -69,16 +99,18 @@ export default function AuthPage(): JSX.Element {
               Password
               {isLogin && (
                 <a
-                href="/auth/reset-password"
-                className="float-right text-sm text-blue-500 hover:underline"
-              >
-                Forgot your password?
-              </a>
+                  href="/auth/reset-password"
+                  className="float-right text-sm text-blue-500 hover:underline"
+                >
+                  Forgot your password?
+                </a>
               )}
             </label>
             <input
-              name="password"
               type="password"
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
               className="input input-bordered w-full mb-4"
@@ -90,8 +122,10 @@ export default function AuthPage(): JSX.Element {
                   Display Name
                 </label>
                 <input
-                  name="display_name"
                   type="text"
+                  name="display_name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Enter your display name"
                   required
                   className="input input-bordered w-full mb-4"
@@ -102,9 +136,11 @@ export default function AuthPage(): JSX.Element {
             <button
               type="submit"
               className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+              disabled={pending}
             >
-              {isLogin ? 'Login' : 'Sign Up'}
+              {pending ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
             </button>
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </form>
 
           <div className="flex items-center my-6">
