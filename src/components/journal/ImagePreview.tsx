@@ -27,6 +27,14 @@ export default function ImagePreview({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const MAX_SIZE = 500 * 1024; // 500KB
+
+    if (file.size > MAX_SIZE) {
+      alert("❌ Image size exceeds 500KB. Please choose a smaller image.");
+      e.target.value = ""; // reset the input
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
