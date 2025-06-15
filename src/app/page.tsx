@@ -1,7 +1,7 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createClient } from '@/utils/supabase/client';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import StatsCards from '@/components/dashboard/StatsCards';
 import RecentEntries from '@/components/dashboard/RecentEntries';
@@ -9,18 +9,52 @@ import RecentEntries from '@/components/dashboard/RecentEntries';
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   const fetchDashboardData = async () => {
     try {
-      const res = await fetch('/api/dashboard', { cache: 'no-store' });
-      const json = await res.json();
-      if (!json.error) {
-        setData(json);
-      } else {
-        console.error(json.error);
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error('Unauthorized');
       }
+
+      const date30DaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
+      const [countRes, last30Res, recentRes] = await Promise.all([
+        supabase
+          .from('journal_entries')
+          .select('id', { count: 'exact', head: true }),
+
+        supabase
+          .from('journal_entries')
+          .select('id')
+          .gte('date', date30DaysAgo),
+
+        supabase
+          .from('journal_entries')
+          .select('id, title, content, date, media_base64')
+          .order('date', { ascending: false })
+          .limit(3),
+      ]);
+
+      const error =
+        countRes.error?.message || last30Res.error?.message || recentRes.error?.message;
+
+      if (error) throw new Error(error);
+
+      setData({
+        totalEntries: countRes.count ?? 0,
+        streak: last30Res.data?.length ?? 0,
+        recentEntries: recentRes.data ?? [],
+      });
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
+      console.error('Dashboard load failed:', error);
     } finally {
       setLoading(false);
     }
