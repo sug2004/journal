@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
@@ -6,18 +7,19 @@ import JournalCard from "@/components/journal/JournalCard";
 export default async function JournalListPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) redirect("/auth");
 
-  // Redirect unauthenticated users to login
-  if (!user) redirect("/auth");
-
-  const { data: entries, error } = await supabase
+  // Parallel-safe, minimal column fetch
+  const { data: entries, error: entriesError } = await supabase
     .from("journal_entries")
-    .select("*")
+    .select("id, title, content, date, media_base64")
     .eq("user_id", user.id)
     .order("date", { ascending: false });
+
+  if (entriesError) {
+    console.error("Error fetching journal entries:", entriesError.message);
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
