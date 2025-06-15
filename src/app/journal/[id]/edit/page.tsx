@@ -73,28 +73,41 @@ export default function EditJournalEntry() {
     };
     reader.readAsDataURL(file);
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError('');
-
-    const res = await fetch(`/api/journal/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
-    });
-
-    const result = await res.json();
-    if (!res.ok) {
-      setError(result.error || 'Update failed');
-    } else {
+  
+    try {
+      const res = await fetch(`/api/journal/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      });
+  
+      const contentType = res.headers.get('Content-Type') || '';
+      let result: any;
+  
+      if (contentType.includes('application/json')) {
+        result = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(`Unexpected response: ${text}`);
+      }
+  
+      if (!res.ok) {
+        throw new Error(result?.error || 'Update failed');
+      }
+  
       router.push(`/journal/${id}`);
+    } catch (err: any) {
+      console.error('Update failed:', err);
+      setError(err.message || 'Unexpected error');
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
-
+    
   if (loading) return <div className="p-4 text-gray-600">Loading...</div>;
   if (error) return <div className="p-4 text-red-500">{error}</div>;
 

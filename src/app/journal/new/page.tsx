@@ -21,7 +21,7 @@ export default function NewJournalEntry() {
 
   const handleSave = async () => {
     setSaving(true);
-
+  
     try {
       const res = await fetch("/api/journal", {
         method: "POST",
@@ -36,15 +36,24 @@ export default function NewJournalEntry() {
           media_base64: imageURL,
         }),
       });
-
-      const result = await res.json();
-
+  
+      const contentType = res.headers.get("Content-Type");
+  
       if (!res.ok) {
-        console.error("❌ Save failed", result.error || result);
-        alert("Save failed: " + (result.error || "Unknown error"));
+        let errorText = "Unknown error";
+        if (contentType && contentType.includes("application/json")) {
+          const result = await res.json();
+          errorText = result?.error || JSON.stringify(result);
+        } else {
+          const text = await res.text();
+          errorText = text || errorText;
+        }
+  
+        console.error("❌ Save failed", errorText);
+        alert("Save failed: " + errorText);
         return;
       }
-
+  
       alert("✅ Entry saved!");
       router.push("/journal");
     } catch (err) {
@@ -54,7 +63,7 @@ export default function NewJournalEntry() {
       setSaving(false);
     }
   };
-
+  
   const handleDelete = () => {
     setTitle("");
     setBody("");
